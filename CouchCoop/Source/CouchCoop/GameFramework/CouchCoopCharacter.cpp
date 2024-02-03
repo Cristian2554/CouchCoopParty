@@ -1,15 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CouchCoopCharacter.h"
+#include "CouchCoopPlayerState.h"
 #include "Engine/LocalPlayer.h"
-#include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/Controller.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "Components/TBAbilitySystemComponent.h"
+#include "Components/TBAbilityInputBindingComponent.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -38,7 +39,8 @@ ACouchCoopCharacter::ACouchCoopCharacter()
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
-	
+
+	AbilityInputBindingComponent = CreateDefaultSubobject<UTBAbilityInputBindingComponent>(TEXT("Input Binding Component"));
 }
 
 void ACouchCoopCharacter::BeginPlay()
@@ -47,42 +49,51 @@ void ACouchCoopCharacter::BeginPlay()
 	Super::BeginPlay();
 }
 
-void ACouchCoopCharacter::PossessedBy(AController* NewController)
+void ACouchCoopCharacter::PossessedBy(AController* newController)
 {
-	Super::PossessedBy(NewController);
-
-	SetupMappingContext();
+	Super::PossessedBy(newController);
+	
+	LocalInitialization();
 }
 
-void ACouchCoopCharacter::SetupMappingContext()
+void ACouchCoopCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+
+	LocalInitialization();
+}
+
+void ACouchCoopCharacter::LocalInitialization()
 {
 	//Add Input Mapping Context
-	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+	if (APlayerController* playerController = Cast<APlayerController>(Controller))
 	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		if (UEnhancedInputLocalPlayerSubsystem* subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(playerController->GetLocalPlayer()))
 		{
-			Subsystem->AddMappingContext(DefaultMappingContext, 0);
+			subsystem->AddMappingContext(DefaultMappingContext, 0);
 		}
+	}
+
+	// Initialize Ability System Component
+	if(ACouchCoopPlayerState* playerState = GetPlayerState<ACouchCoopPlayerState>())
+	{
+		AbilitySystemComponent = Cast<UTBAbilitySystemComponent>(playerState->GetAbilitySystemComponent());
+		playerState->GetAbilitySystemComponent()->InitAbilityActorInfo(playerState, this);
 	}
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Input
 
-void ACouchCoopCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+void ACouchCoopCharacter::SetupPlayerInputComponent(UInputComponent* playerInputComponent)
 {
 	// Set up action bindings
-	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
-		
-		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-
+	if (UEnhancedInputComponent* enhancedInputComponent = Cast<UEnhancedInputComponent>(playerInputComponent)) {
 		// Moving
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ACouchCoopCharacter::Move);
+		enhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ACouchCoopCharacter::Move);
 
 		// Looking
-		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ACouchCoopCharacter::Look);
+		enhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ACouchCoopCharacter::Look);
 	}
 	else
 	{
@@ -124,4 +135,14 @@ void ACouchCoopCharacter::Look(const FInputActionValue& Value)
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
+}
+
+UAbilitySystemComponent* ACouchCoopCharacter::GetAbilitySystemComponent() const
+{
+	return AbilitySystemComponent.Get();
+}
+
+UTBAbilityInputBindingComponent* ACouchCoopCharacter::GetInputBindingComponent() const
+{
+	return AbilityInputBindingComponent;
 }

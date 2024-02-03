@@ -17,7 +17,8 @@ public class CouchCoop : ModuleRules
 			"EnhancedInput", 
 			"GameplayAbilities", 
 			"GameplayTags", 
-			"GameplayTasks"
+			"GameplayTasks",
+			"GASToolBelt"
 		});
 	}
 }

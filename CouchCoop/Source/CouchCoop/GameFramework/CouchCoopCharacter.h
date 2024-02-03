@@ -12,14 +12,19 @@ class USpringArmComponent;
 class UCameraComponent;
 class UInputMappingContext;
 class UInputAction;
+class UTBAbilitySystemComponent;
+class UTBAbilityInputBindingComponent;
 struct FInputActionValue;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All)
 
 UCLASS(config=Game)
-class ACouchCoopCharacter : public ACharacter
+class ACouchCoopCharacter : public ACharacter, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AbilitySystem, meta = (AllowPrivateAccess = "true"))
+	UTBAbilityInputBindingComponent* AbilityInputBindingComponent;
 	
 	/** MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -37,9 +42,15 @@ class ACouchCoopCharacter : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
 
+protected:
+	TWeakObjectPtr<UTBAbilitySystemComponent> AbilitySystemComponent;
+	
 public:
 	ACouchCoopCharacter();
 
+	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	UTBAbilityInputBindingComponent* GetInputBindingComponent() const;
 protected:
 
 	/** Called for movement input */
@@ -47,17 +58,16 @@ protected:
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
-			
-
-protected:
+	
 	// APawn interface
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void SetupPlayerInputComponent(class UInputComponent* playerInputComponent) override;
+
+	virtual void PossessedBy(AController* newController) override;
+
+	virtual void OnRep_PlayerState() override;
 	
 	// To add mapping context
 	virtual void BeginPlay();
 
-	void SetupMappingContext();
-
-	virtual void PossessedBy(AController* NewController) override;
+	void LocalInitialization();
 };
-
